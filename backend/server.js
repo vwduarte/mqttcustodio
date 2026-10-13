@@ -9,11 +9,30 @@ require('dotenv').config();
 const app = express();
 app.use(express.json());
 app.use(cors());
+const path = require('path');
+ 
+// 1. Torna os arquivos da pasta frontend acessíveis (CSS, JS, Imagens)
+app.use(express.static(path.join(__dirname, '..', 'frontend')));
+ 
+// 2. Rota principal: entrega o seu index.html quando acessar o domínio puro
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html'));
+});
 
 // Configuração do Banco de Dados
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL
 });
+
+// --- VERIFICAÇÃO DE CONEXÃO COM O BANCO DE DADOS ---
+console.log("⏳ BANCO DE DADOS: Tentando conectar ao PostgreSQL...");
+pool.query('SELECT NOW()')
+    .then(() => {
+        console.log("✅ BANCO DE DADOS: Conexão estabelecida com sucesso!");
+    })
+    .catch((err) => {
+        console.error("❌ BANCO DE DADOS: Erro ao conectar:", err.message);
+    });
 
 console.log("--- MODO SEGURO ATIVADO: SISTEMA CETREL ---");
 
@@ -80,6 +99,8 @@ app.get('/api/dados', async (req, res) => {
 });
 
 /* ---------------- 3. INTEGRAÇÃO MQTT ---------------- */
+console.log("⏳ MQTT: Tentando conectar ao broker...");
+
 const mqttClient = mqtt.connect(process.env.MQTT_BROKER, {
     username: process.env.MQTT_USER,
     password: process.env.MQTT_PASSWORD
@@ -88,6 +109,14 @@ const mqttClient = mqtt.connect(process.env.MQTT_BROKER, {
 mqttClient.on('connect', () => {
     console.log("📡 MQTT: Conexão segura estabelecida.");
     mqttClient.subscribe('+/+');
+});
+
+mqttClient.on('error', (err) => {
+    console.error("❌ MQTT: Erro na conexão:", err.message);
+});
+
+mqttClient.on('reconnect', () => {
+    console.log("⏳ MQTT: Tentando reconectar ao broker...");
 });
 
 mqttClient.on('message', async (topic, message) => {
@@ -105,7 +134,7 @@ mqttClient.on('message', async (topic, message) => {
 });
 
 /* ---------------- 4. START ---------------- */
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`🚀 SERVIDOR RODANDO EM MODO SEGURO: http://localhost:${PORT}`);
+const PORT = 8084;
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 SERVIDOR RODANDO EM MODO SEGURO: https://custodiamqtt.cetrel.com.br:${PORT}`);
 });
