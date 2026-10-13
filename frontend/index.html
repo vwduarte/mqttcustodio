@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CETREL</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/raphael@2.3.0/raphael.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/justgage@1.3.5/justgage.js"></script>
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" />
+
+  <style>
+    /* Variáveis de Cores - Suporta Dark Mode */
+    :root { 
+        --primary: #059e8a; --secondary: #00add6; 
+        --bg: #f4f6f8; --card-bg: #ffffff; --text: #222; --border: #eee;
+        --sidebar-bg: #ffffff; --input-bg: #ffffff;
+        --sidebar-width: 240px; 
+    }
+
+    [data-theme="dark"] {
+        --bg: #121212; --card-bg: #1e1e1e; --text: #e0e0e0; --border: #333;
+        --sidebar-bg: #181818; --input-bg: #2d2d2d;
+    }
+
+    * { box-sizing: border-box; transition: background 0.3s, color 0.3s; }
+    body { margin: 0; font-family: "Segoe UI", Arial, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; }
+
+    /* Sidebar */
+    .sidebar { width: var(--sidebar-width); background: var(--sidebar-bg); border-right: 1px solid var(--border); height: 100vh; position: fixed; left: 0; top: 0; padding: 18px; display: flex; flex-direction: column; gap: 12px; z-index: 2000; }
+    .sidebar h3 { margin: 0 0 10px 0; color: var(--primary); font-size: 20px; text-align: center; border-bottom: 2px solid var(--primary); padding-bottom: 10px; }
+    
+    /* Main Content */
+    .main { margin-left: var(--sidebar-width); padding: 20px; width: calc(100% - var(--sidebar-width)); }
+
+    /* Login Screen */
+    #loginScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+    .modal-card { background: var(--card-bg); padding: 35px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; width: 380px; border: 1px solid var(--border); }
+    input { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); outline: none; }
+    
+    /* Botões */
+    .action-btn { width: 100%; padding: 12px; border: none; background: var(--primary); color: white; font-weight: bold; cursor: pointer; border-radius: 8px; font-size: 14px; transition: 0.2s; }
+    .action-btn:hover { filter: brightness(1.1); }
+    .theme-toggle { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; cursor: pointer; border-radius: 8px; font-size: 13px; margin-bottom: 10px; width: 100%; }
+
+    /* Cards e Grid */
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 20px; }
+    .container { background: var(--card-bg); border-radius: 12px; padding: 18px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); border-top: 5px solid var(--primary); position: relative; }
+    .header-card { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+    .header-card h2 { color: var(--primary); margin: 0; font-size: 18px; font-weight: bold; }
+
+    /* Tabs */
+    .tab-btns { display: flex; gap: 5px; margin-bottom: 15px; }
+    .tab-btn { flex: 1; padding: 10px 5px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); cursor: pointer; text-align: center; color: var(--text); font-weight: 600; }
+    .tab-btn.active { background: var(--primary) !important; border-color: var(--primary); color: white !important; box-shadow: 0 2px 5px rgba(5,158,138,0.4); }
+    
+    .cards-row { display: flex; gap: 10px; margin-bottom: 15px; }
+    .val-card { background: var(--bg); border-radius: 10px; padding: 12px; flex: 1; text-align: center; border: 1px solid var(--border); }
+    .val-card p { margin: 0 0 5px 0; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+    .val-destaque { font-size: 22px; font-weight: 800; color: var(--text); }
+    
+    .gauge-box { width: 100%; height: 180px; }
+    .footer-info { font-size: 11px; color: #888; display: flex; justify-content: space-between; margin-top: 15px; border-top: 1px solid var(--border); padding-top: 8px; }
+    
+    .status-dot { height: 10px; width: 10px; background-color: #bbb; border-radius: 50%; display: inline-block; margin-right: 5px; }
+    .online { background-color: #2ecc71; box-shadow: 0 0 8px #2ecc71; }
+
+    .small-label { font-size: 10px; color: #888; margin-top: 15px; display: block; }
+  </style>
+</head>
+<body data-theme="light">
+
+  <div id="loginScreen">
+    <div class="modal-card">
+        <h2 style="color:var(--primary); margin-top:0">CETREL</h2>
+        <p style="color:#888">Monitoramento Industrial v2.0</p>
+        <input id="username" placeholder="Usuário" />
+        <input id="password" type="password" placeholder="Senha" />
+        <button class="action-btn" onclick="fazerLogin()">ENTRAR NO SISTEMA</button>
+        <p id="login-error" style="color:#e74c3c; font-size:12px; margin-top:10px; font-weight:bold"></p>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <h3>Painel de Controle</h3>
+    
+    <button class="theme-toggle" onclick="toggleTheme()">
+        <i class="fas fa-adjust"></i> Alternar Tema
+    </button>
+    
+    <div style="padding: 10px; background: var(--bg); border-radius: 8px; border: 1px solid var(--border)">
+        <span class="status-dot" id="server-dot"></span>
+        <span style="font-size: 12px;">Servidor: <b id="server-status">Buscando...</b></span>
+    </div>
+    
+    <span class="small-label">GERENCIAMENTO</span>
+    <input id="new-client-name" placeholder="NOME DO CLIENTE" style="font-size:12px">
+    <button class="action-btn" style="background:var(--secondary); padding:10px" onclick="adicionarClienteManual()">+ Adicionar Cliente</button>
+
+    <div style="flex:1"></div>
+    
+    <button class="action-btn" style="background:#e74c3c" onclick="logout()">
+        <i class="fas fa-sign-out-alt"></i> SAIR
+    </button>
+  </div>
+
+  <div class="main">
+    <div class="grid" id="clients-grid"></div>
+  </div>
+
+<script>
+    const API_URL = "https://custodiamqtt.cetrel.com.br/api";
+    
+    // Recupera lista salva ou inicia com padrão
+    let CLIENTES = JSON.parse(localStorage.getItem('lista_clientes')) || ["PETROBRAS-FAFEN", "BRASKEM-PVC"];
+    
+    const gauges = {};
+    const activeTabs = {}; // Armazena a aba selecionada por cliente
+
+    /* --- AUTENTICAÇÃO --- */
+    async function fazerLogin() {
+        const user = document.getElementById('username').value;
+        const pass = document.getElementById('password').value;
+        try {
+            const res = await fetch(`${API_URL}/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: user, password: pass })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                localStorage.setItem('token', data.token);
+                document.getElementById('loginScreen').style.display = 'none';
+                init();
+            } else { document.getElementById('login-error').innerText = data.error; }
+        } catch (err) { alert("Servidor offline! Verifique o terminal do Node.js"); }
+    }
+
+    function init() {
+        renderLayout();
+        setInterval(buscarDados, 3000); // Atualiza dados a cada 3s
+        buscarDados();
+    }
+
+    /* --- TEMA --- */
+    function toggleTheme() {
+        const body = document.body;
+        const isDark = body.getAttribute('data-theme') === 'dark';
+        const newTheme = isDark ? 'light' : 'dark';
+        body.setAttribute('data-theme', newTheme);
+        
+        // Atualiza a cor dos títulos dos Gauges
+        Object.values(gauges).forEach(g => {
+            g.refresh(g.getValue(), null, { titleFontColor: newTheme==='dark'?'#ffffff':'#333333' });
+        });
+    }
+
+    /* --- GESTÃO DE CLIENTES --- */
+    function adicionarClienteManual() {
+        const name = document.getElementById('new-client-name').value.trim().toUpperCase();
+        if (name) registrarNovoCliente(name);
+        document.getElementById('new-client-name').value = "";
+    }
+
+    function registrarNovoCliente(name) {
+        if (!CLIENTES.includes(name)) {
+            CLIENTES.push(name);
+            localStorage.setItem('lista_clientes', JSON.stringify(CLIENTES));
+            renderLayout(); // Redesenha tudo apenas quando a LISTA de clientes muda
+        }
+    }
+
+    function removerCliente(name) {
+        if(confirm(`Deseja remover o monitoramento de ${name}?`)) {
+            CLIENTES = CLIENTES.filter(c => c !== name);
+            localStorage.setItem('lista_clientes', JSON.stringify(CLIENTES));
+            renderLayout();
+        }
+    }
+
+    /* --- INTERFACE (RENDERIZA UMA VEZ) --- */
+    function renderLayout() {
+        const grid = document.getElementById('clients-grid');
+        grid.innerHTML = "";
+        
+        CLIENTES.forEach(cliente => {
+            if (!activeTabs[cliente]) activeTabs[cliente] = 'clarificada';
+            
+            const html = `
+                <div class="container" id="card-${cliente}">
+                    <div class="header-card">
+                        <h2><i class="fas fa-industry"></i> ${cliente}</h2>
+                        <i class="fas fa-trash delete-btn" style="cursor:pointer; font-size:14px; opacity:0.4" onclick="removerCliente('${cliente}')"></i>
+                    </div>
+                    
+                    <div class="tab-btns">
+                        <div class="tab-btn ${activeTabs[cliente]==='clarificada'?'active':''}" id="btn-${cliente}-clarificada" onclick="switchTab('${cliente}', 'clarificada')">Clarificada</div>
+                        <div class="tab-btn ${activeTabs[cliente]==='desmineralizada'?'active':''}" id="btn-${cliente}-desmineralizada" onclick="switchTab('${cliente}', 'desmineralizada')">Desmin.</div>
+                        <div class="tab-btn ${activeTabs[cliente]==='potavel'?'active':''}" id="btn-${cliente}-potavel" onclick="switchTab('${cliente}', 'potavel')">Potável</div>
+                    </div>
+
+                    <div class="cards-row">
+                        <div class="val-card"><p>Vazão</p><div class="val-destaque" id="${cliente}-inst">0.00</div></div>
+                        <div class="val-card"><p>Total</p><div class="val-destaque" id="${cliente}-total">0</div></div>
+                    </div>
+
+                    <div id="gauge-${cliente}" class="gauge-box"></div>
+
+                    <div class="footer-info">
+                        <span id="${cliente}-energy"><i class="fas fa-bolt"></i> Energia: --</span>
+                        <span id="${cliente}-time"><i class="far fa-clock"></i> --:--:--</span>
+                    </div>
+                </div>`;
+            grid.insertAdjacentHTML('beforeend', html);
+
+            // Inicia o Gauge
+            gauges[cliente] = new JustGage({
+                id: `gauge-${cliente}`, value: 0, min: 0, max: 100,
+                title: "Vazão Instante", label: "m³/h", relativeGaugeSize: true,
+                levelColors: ["#059e8a"], 
+                titleFontColor: document.body.getAttribute('data-theme')==='dark'?'#ffffff':'#333333'
+            });
+        });
+    }
+
+    /* --- TROCA DE ABA (SEM REFRESH DA PÁGINA) --- */
+    function switchTab(cliente, tab) {
+        activeTabs[cliente] = tab;
+
+        // Atualiza visual dos botões do card específico
+        const card = document.getElementById(`card-${cliente}`);
+        card.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        
+        // Ativa o botão clicado baseado no texto/onclick
+        const botoes = card.querySelectorAll('.tab-btn');
+        botoes.forEach(b => {
+            if(b.getAttribute('onclick').includes(tab)) b.classList.add('active');
+        });
+
+        // Feedback visual imediato: zera os campos até o próximo ciclo de dados
+        document.getElementById(`${cliente}-inst`).innerText = "---";
+        document.getElementById(`${cliente}-total`).innerText = "---";
+        gauges[cliente].refresh(0);
+
+        buscarDados(); // Força atualização imediata
+    }
+
+    /* --- COMUNICAÇÃO COM SERVIDOR --- */
+    async function buscarDados() {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        try {
+            const res = await fetch(`${API_URL}/dados`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const dados = await res.json();
+            if (res.ok) {
+                document.getElementById('server-status').innerText = "Online";
+                document.getElementById('server-dot').className = "status-dot online";
+                
+                // AUTO-DETECÇÃO: Se o servidor mandar cliente novo, registra.
+                dados.forEach(item => {
+                    if (!CLIENTES.includes(item.cliente)) {
+                        console.log("Novo cliente detectado no servidor:", item.cliente);
+                        registrarNovoCliente(item.cliente);
+                    }
+                });
+
+                processarDados(dados);
+            }
+        } catch (err) {
+            document.getElementById('server-status').innerText = "Offline";
+            document.getElementById('server-dot').className = "status-dot";
+        }
+    }
+
+    function processarDados(lista) {
+        const map = { 
+            clarificada: { inst: 'vz2', tot: 'vz_tot2' }, 
+            desmineralizada: { inst: 'vz3', tot: 'vz_tot3' }, 
+            potavel: { inst: 'vz1', tot: 'vz_tot1' } 
+        };
+
+        lista.forEach(item => {
+            const cliente = item.cliente;
+            const aba = activeTabs[cliente];
+            
+            // Sensor de Energia
+            if (item.topico === 'ed0') {
+                const el = document.getElementById(`${cliente}-energy`);
+                if (el) {
+                    el.innerHTML = item.valor == "1" ? `<i class="fas fa-bolt" style="color:#2ecc71"></i> Energia: OK` : `<i class="fas fa-exclamation-triangle" style="color:#e74c3c"></i> SEM ENERGIA`;
+                }
+            }
+
+            // Atualiza Vazão (se o tópico bater com a aba aberta)
+            if (item.topico === map[aba]?.inst) {
+                const val = parseFloat(item.valor);
+                const elInst = document.getElementById(`${cliente}-inst`);
+                if (elInst) elInst.innerText = val.toFixed(2);
+                if (gauges[cliente]) gauges[cliente].refresh(val);
+                
+                const elTime = document.getElementById(`${cliente}-time`);
+                if (elTime) elTime.innerHTML = `<i class="far fa-clock"></i> ` + new Date(item.data).toLocaleTimeString();
+            }
+
+            // Atualiza Totalizador
+            if (item.topico === map[aba]?.tot) {
+                const elTot = document.getElementById(`${cliente}-total`);
+                if (elTot) elTot.innerText = parseFloat(item.valor).toLocaleString('pt-BR', {minimumFractionDigits: 0});
+            }
+        });
+    }
+
+    function logout() { localStorage.removeItem('token'); window.location.reload(); }
+    
+    // Verifica se já está logado
+    if (localStorage.getItem('token')) { 
+        document.getElementById('loginScreen').style.display = 'none'; 
+        init(); 
+    }
+</script>
+</body>
+</html>
